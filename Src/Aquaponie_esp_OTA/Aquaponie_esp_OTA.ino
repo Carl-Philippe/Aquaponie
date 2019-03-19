@@ -3,13 +3,19 @@ const int FW_VERSION = 2;                                                       
 #include <ESP8266HTTPClient.h>
 #include <ESP8266httpUpdate.h>
 // Note the raw.githubuserconent, this allows us to access the contents at the url, not the webpage itself
-const char* fwURLBase = "https://raw.githubusercontent.com/BIUS-USherbrooke/BIUS_Domotique/master/Modules/ESPOTAexample/ESPOTAexample"; // IP adress to the subfolder containing the binary and version number for this specific device
+const char* fwURLBase = "https://raw.githubusercontent.com/Carl-Philippe/Aquaponie/tree/Develop/Aquaponie_esp_OTA"; // IP adress to the subfolder containing the binary and version number for this specific device
 
 /************************************* CAYENNE *****************************************/
 
 #define CAYENNE_DEBUG
 #define CAYENNE_PRINT Serial                 //wifi
 #include <CayenneMQTTESP8266.h>
+
+// If too many errors when connecting, deep sleep (which will restart the esp)
+// PIN D0 OF THE NODEMCU MUST BE CONNECTed TO THE RST PIN
+int failedConnections = 0;
+#define SLEEP_TIME 20e6
+
 //#include <DHT.h>  // DHTsensor
 #include <DHTesp.h> // DHTesp library, a verifier laquelle fonctionne le mieux avec cayenne.
 
@@ -21,6 +27,10 @@ char wifiPassword[] = "s9003502";
 char username[] = "6e7efa60-b6a3-11e8-a5e0-433900986fca";
 char password[] = "70a3b8c6b91c0e52f4341fa54b8b3f87bfc0d0f5";
 char clientID[] = "d301fc90-fe7d-11e8-809d-0f8fe4c30267";
+
+// Always keep these two channels for cayenne, useful for pushing automatic updates (instead of waiting for timing window)
+#define VIRTUAL_CHANNEL 98                                                       // Version number
+#define VIRTUAL_CHANNEL 0                                                       // Channel to force an OTA update
 
 #define VIRTUAL_CHANNEL 1 // Feed the fishies
 #define VIRTUAL_CHANNEL 2 // Flotteur C manque d'eau
@@ -73,6 +83,8 @@ bool etat_priseb = 0;
 /************************************************************************************/
 void setup() {
   Serial.begin(9600);
+  delay(10);
+  
   pinMode(PRISE_LAMPE, OUTPUT);
   pinMode(PRISE_POMPE, OUTPUT);
   pinMode(PRISE_B,OUTPUT);
@@ -86,19 +98,23 @@ void setup() {
 /************************************************************************************/
 void loop() {
   /********************* Acquisition de data ****************************/
-  int i = 0;
-  while (WiFi.status() != WL_CONNECTED && i < 50) {
-    delay(500);
-    i++;
-    Serial.print(".");
+  if (WiFi.status() == WL_CONNECTED) {                                           // If connected to internet, proceed normally
+    Cayenne.virtualWrite(98,FW_VERSION);                                         // Send the version number to Cayenne
+    Cayenne.loop();                                                              // Proceed with cayenne.loop()
+    //checkForUpdates();
+    
+    delay(1000);  // For testing this file.
+  } else {
+    failedConnections++;
+    // If we failed the connection more than ten times, deep sleep and retry another time
+    if (failedConnections > 10) {
+      ESP.deepSleep(SLEEP_TIME);                                                // PIN D0 OF THE NODEMCU MUST BE CONNECT TO THE RST PIN
+    } else {
+      // Sinon, delay 1000
+      delay(1000);
+    }
   }
-  if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("WiFi Connection failed, restart");// echoué = reset
-    WiFi.disconnect();
-    delay(500);
-    //ESP.restart();
-    Cayenne.begin(username, password, clientID, ssid, wifiPassword);
-  }
+  
   flotteur_A = digitalRead(PIN_FLOAT_A);
   flotteur_B = digitalRead(PIN_FLOAT_B);
   flotteur_C = digitalRead(PIN_FLOAT_C);
@@ -121,6 +137,12 @@ void loop() {
     Cayenne.virtualWrite(2, LOW); // Ne pompe pas et envoie à cayenne une alerte (remplir aquarium)
   }
   else */
+   if (nourrir_state == 1) {
+    Serial.println(nourrir_state);
+    Alarm.delay(50); //allows all // Serial sent to be received together
+    nourrir_state = 0;
+  }
+  
   if (millis() - timerDernierPompage >= temps_entre_remplissages)
   {
     if ( flotteur_B == 0 )
@@ -153,22 +175,18 @@ void loop() {
 }
 
 /***************************************Communication avec cayenne****************************************/
+// Check for updates on web server
+CAYENNE_IN(0)
+{
+  checkForUpdates();
+}
 // Read the time to pump
 CAYENNE_IN(1)
 {
-int currentValue = getValue.asInt();
-  if (currentValue == 1)
-  {
+  if (nourrir_state == 0)
     nourrir_state = 1;
-    Serial.write(nourrir_state / 256);
-    Serial.write(nourrir_state % 256);
-    delay(75);  //allows all serial sent to be received together
-    nourrir_state = 0;
-  }
   else
-  { 
     nourrir_state = 0;
-  }
 }
 // Alerte manque d'eau
 CAYENNE_OUT(2)
@@ -224,4 +242,24 @@ CAYENNE_IN(11)
 {
   int etat_priseb = (bool) getValue.asInt();
   digitalWrite(PRISE_B, etat_priseb);
+}
+
+/************************************ Functions *************************************/
+// This function checks the web server to see if a new version number is available, if so, it updates with the new firmware (binary)
+void checkForUpdates() {
+  String fwImageURL = String(fwURLBase);
+      fwImageURL.concat( ".ino.nodemcu.bin" );                                              // Adds the url for the binary
+      Serial.println(fwImageURL);
+      t_httpUpdate_return ret = ESPhttpUpdate.update( fwImageURL , "", "CC:AA:48:48:66:46:0E:91:53:2C:9C:7C:23:2A:B1:74:4D:29:9D:33");             // Update the esp with the new binary, third is the certificate of the site
+      delay(50);
+
+      switch(ret) {
+        case HTTP_UPDATE_FAILED:
+          Serial.printf("HTTP_UPDATE_FAILED Error (%d): %s", ESPhttpUpdate.getLastError(), ESPhttpUpdate.getLastErrorString().c_str());
+          break;
+
+        case HTTP_UPDATE_NO_UPDATES:
+          Serial.println("no updates");
+          break;
+  }
 }
