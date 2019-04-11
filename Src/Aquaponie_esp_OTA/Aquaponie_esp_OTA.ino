@@ -267,7 +267,7 @@ void checkForUpdates() {
       fwImageURL.concat( ".ino.nodemcu.bin" );                                              // Adds the url for the binary
       Serial.println(fwImageURL);
       t_httpUpdate_return ret = ESPhttpUpdate.update( fwImageURL , "", "CC:AA:48:48:66:46:0E:91:53:2C:9C:7C:23:2A:B1:74:4D:29:9D:33");             // Update the esp with the new binary, third is the certificate of the site
-      delay(50);
+      delay(100);
 
       switch(ret) {
         case HTTP_UPDATE_FAILED:
