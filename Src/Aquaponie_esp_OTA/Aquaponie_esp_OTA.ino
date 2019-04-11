@@ -1,5 +1,5 @@
 /************************************** OTA *****************************************/
-const int FW_VERSION = 3;                                                        // Version number, don't forget to update this on changes
+const int FW_VERSION = 1;                                                        // Version number, don't forget to update this on changes
 #include <ESP8266HTTPClient.h>
 #include <ESP8266httpUpdate.h>
 // Note the raw.githubuserconent, this allows us to access the contents at the url, not the webpage itself
@@ -7,7 +7,7 @@ const char* fwURLBase = "https://raw.githubusercontent.com/Carl-Philippe/Aquapon
 
 /************************************* CAYENNE *****************************************/
 
-#define CAYENNE_DEBUG
+//#define CAYENNE_DEBUG
 #define CAYENNE_PRINT Serial                 //wifi
 #include <CayenneMQTTESP8266.h>
 
@@ -98,6 +98,8 @@ void setup() {
   //dht.begin();
   CAYENNE_IN(12);
   CAYENNE_IN(4);
+  CAYENNE_OUT(13);
+  CAYENNE_OUT(10);
   dht.setup(DHTPIN, DHTesp::DHT11);
 }
 /************************************************************************************/
@@ -142,11 +144,7 @@ void loop() {
     Cayenne.virtualWrite(2, LOW); // Ne pompe pas et envoie à cayenne une alerte (remplir aquarium)
   }
   else */
-   if (nourrir_state == 1) {
-    Serial.write(nourrir_state);
-    delay(50); //allows all // Serial sent to be received together
-    nourrir_state = 0;
-  }
+
   
   if (millis() - timerDernierPompage >= temps_entre_remplissages)
   {
@@ -188,9 +186,9 @@ CAYENNE_IN(0)
 // Read the time to pump
 CAYENNE_IN(1)
 {
-  if (nourrir_state == 0)
     nourrir_state = 1;
-  else
+    Serial.write(nourrir_state); // send 1 in bits through serial
+    delay(50); //allows all // Serial sent to be received together
     nourrir_state = 0;
 }
 // Alerte manque d'eau
@@ -253,6 +251,7 @@ CAYENNE_IN(12)
   int new_value = getValue.asInt();
   qte_bouffe = new_value;
   Serial.write(qte_bouffe);
+  delay(50);
 }
 CAYENNE_OUT(13)
 {

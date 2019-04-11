@@ -29,7 +29,7 @@ void loop() {
 
   //int temp = b2  + b1 * 256 ; 
   while (!Serial.available()){}
-  int temp =  Serial.parseInt();
+  int temp =  Serial.read();
   Serial.println(temp);
 
   if (temp == 1)
