@@ -3,7 +3,7 @@ const int FW_VERSION = 2;                                                       
 #include <ESP8266HTTPClient.h>
 #include <ESP8266httpUpdate.h>
 // Note the raw.githubuserconent, this allows us to access the contents at the url, not the webpage itself
-const char* fwURLBase = "https://raw.githubusercontent.com/Carl-Philippe/Aquaponie/tree/Develop/src/Aquaponie_esp_OTA"; // IP adress to the subfolder containing the binary and version number for this specific device
+const char* fwURLBase = "https://raw.githubusercontent.com/Carl-Philippe/Aquaponie/tree/Develop/Src/Aquaponie_esp_OTA"; // IP adress to the subfolder containing the binary and version number for this specific device
 
 /************************************* CAYENNE *****************************************/
 
@@ -43,6 +43,7 @@ char clientID[] = "d301fc90-fe7d-11e8-809d-0f8fe4c30267";
 #define VIRTUAL_CHANNEL 9
 #define VIRTUAL_CHANNEL 10
 #define VIRTUAL_CHANNEL 11
+#define VIRTUAL_CHANNEL 12 // Qte de bouffe a donner
 
 #define PRISE_LAMPE D2     // Prise controllable 1
 #define PRISE_POMPE D1    // Prise controllable 2
@@ -64,6 +65,7 @@ DHTesp dht;
 
 int duree_pompage = 10; // Secondes de durée de pompe
 int nourrir_state = 0;
+int qte_bouffe = 5;
 int temps_entre_remplissages = 1800000; //2h par defaut
 
 float hum, temp;
@@ -93,6 +95,8 @@ void setup() {
   digitalWrite(PRISE_B,HIGH);
   Cayenne.begin(username, password, clientID, ssid, wifiPassword);
   //dht.begin();
+  CAYENNE_IN(12);
+  CAYENNE_IN(4);
   dht.setup(DHTPIN, DHTesp::DHT11);
 }
 /************************************************************************************/
@@ -138,7 +142,7 @@ void loop() {
   }
   else */
    if (nourrir_state == 1) {
-    Serial.println(nourrir_state);
+    Serial.write(nourrir_state);
     delay(50); //allows all // Serial sent to be received together
     nourrir_state = 0;
   }
@@ -243,23 +247,28 @@ CAYENNE_IN(11)
   int etat_priseb = (bool) getValue.asInt();
   digitalWrite(PRISE_B, etat_priseb);
 }
-
+CAYENNE_IN(12)
+{
+  int new_value = getValue.asInt();
+  qte_bouffe = new_value;
+  Serial.write(qte_bouffe);
+}
 /************************************ Functions *************************************/
 // This function checks the web server to see if a new version number is available, if so, it updates with the new firmware (binary)
 void checkForUpdates() {
   String fwImageURL = String(fwURLBase);
       fwImageURL.concat( ".ino.nodemcu.bin" );                                              // Adds the url for the binary
-      Serial.println(fwImageURL);
+      //Serial.println(fwImageURL);
       t_httpUpdate_return ret = ESPhttpUpdate.update( fwImageURL , "", "CC:AA:48:48:66:46:0E:91:53:2C:9C:7C:23:2A:B1:74:4D:29:9D:33");             // Update the esp with the new binary, third is the certificate of the site
       delay(50);
 
       switch(ret) {
         case HTTP_UPDATE_FAILED:
-          Serial.printf("HTTP_UPDATE_FAILED Error (%d): %s", ESPhttpUpdate.getLastError(), ESPhttpUpdate.getLastErrorString().c_str());
+          //Serial.printf("HTTP_UPDATE_FAILED Error (%d): %s", ESPhttpUpdate.getLastError(), ESPhttpUpdate.getLastErrorString().c_str());
           break;
 
         case HTTP_UPDATE_NO_UPDATES:
-          Serial.println("no updates");
+          //Serial.println("no updates");
           break;
   }
 }
