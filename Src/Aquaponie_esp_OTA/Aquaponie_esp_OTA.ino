@@ -44,6 +44,7 @@ char clientID[] = "d301fc90-fe7d-11e8-809d-0f8fe4c30267";
 #define VIRTUAL_CHANNEL 10
 #define VIRTUAL_CHANNEL 11
 #define VIRTUAL_CHANNEL 12 // Qte de bouffe a donner
+#define VIRTUAL_CHANNEL 13 // Feedback bouffe a donner
 
 #define PRISE_LAMPE D2     // Prise controllable 1
 #define PRISE_POMPE D1    // Prise controllable 2
@@ -253,6 +254,12 @@ CAYENNE_IN(12)
   qte_bouffe = new_value;
   Serial.write(qte_bouffe);
 }
+CAYENNE_OUT(13)
+{
+  Cayenne.virtualWrite(13,qte_bouffe);
+}
+
+
 /************************************ Functions *************************************/
 // This function checks the web server to see if a new version number is available, if so, it updates with the new firmware (binary)
 void checkForUpdates() {
