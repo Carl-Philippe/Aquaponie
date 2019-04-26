@@ -148,12 +148,12 @@ void loop() {
   
   if (millis() - timerDernierPompage >= temps_entre_remplissages)
   {
-    if ( flotteur_B == 0 && flotteur_A == 0)
+    if ( !flotteur_B && !flotteur_A)
     {
       digitalWrite(PRISE_POMPE, LOW); // Demarre la pompe
       timerPompage = millis();
     }
-    if (millis() - timerPompage >= DUREE_REMPLISSAGE_MAX || flotteur_B == 1 || flotteur_A == 1) // Protection bris du flotteur
+    if (millis() - timerPompage >= DUREE_REMPLISSAGE_MAX || flotteur_B || flotteur_A) // Protection bris du flotteur
     {
         digitalWrite(PRISE_POMPE, HIGH); // Arrete la pompe
         timerDernierPompage = millis();
