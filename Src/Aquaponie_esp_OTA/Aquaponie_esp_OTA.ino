@@ -1,10 +1,17 @@
 /************************************** OTA *****************************************/
-const int FW_VERSION = 1;                                                        // Version number, don't forget to update this on changes
-#include <ESP8266HTTPClient.h>
-#include <ESP8266httpUpdate.h>
-// Note the raw.githubuserconent, this allows us to access the contents at the url, not the webpage itself
-const char* fwURLBase = "https://raw.githubusercontent.com/Carl-Philippe/Aquaponie/Src/Aquaponie_esp_OTA/Aquaponie_esp_OTA"; // IP adress to the subfolder containing the binary and version number for this specific device
+#include <ESP8266WiFi.h>
+#include <ESP8266mDNS.h>
+#include <WiFiUdp.h>
+#include <ArduinoOTA.h>
 
+#ifndef STASSID
+#define STASSID "SmartRGE1BB"
+#define STAPSK  "s9003502"
+#endif
+
+// WiFi network info.
+const char* ssid = STASSID;
+const char* wifiPassword = STAPSK;
 /************************************* CAYENNE *****************************************/
 
 //#define CAYENNE_DEBUG
@@ -16,24 +23,15 @@ const char* fwURLBase = "https://raw.githubusercontent.com/Carl-Philippe/Aquapon
 int failedConnections = 0;
 #define SLEEP_TIME 20e6
 
-//#include <DHT.h>  // DHTsensor
-#include <DHTesp.h> // DHTesp library, a verifier laquelle fonctionne le mieux avec cayenne.
-
-// WiFi network info.
-char ssid[] = "SmartRGE1BB";
-char wifiPassword[] = "s9003502";
+#include <DHTesp.h> // DHTesp library
 
 // Cayenne authentication info. This should be obtained from the Cayenne Dashboard.
 char username[] = "6e7efa60-b6a3-11e8-a5e0-433900986fca";
 char password[] = "70a3b8c6b91c0e52f4341fa54b8b3f87bfc0d0f5";
 char clientID[] = "d301fc90-fe7d-11e8-809d-0f8fe4c30267";
 
-// Always keep these two channels for cayenne, useful for pushing automatic updates (instead of waiting for timing window)
-#define VIRTUAL_CHANNEL 98                                                       // Version number
-#define VIRTUAL_CHANNEL 0                                                       // Channel to force an OTA update
-
 #define VIRTUAL_CHANNEL 1 // Feed the fishies
-#define VIRTUAL_CHANNEL 2 // Flotteur C manque d'eau
+#define VIRTUAL_CHANNEL 2 // Flotteur C reservoir a poissons manque d'eau
 #define VIRTUAL_CHANNEL 3 // Etat de la lampe
 #define VIRTUAL_CHANNEL 4 // Temps entre cycles
 #define VIRTUAL_CHANNEL 5 // 
@@ -55,8 +53,6 @@ char clientID[] = "d301fc90-fe7d-11e8-809d-0f8fe4c30267";
 #define PIN_FLOAT_C D6  // Flotteur sécurité du réservoir à poissons
 
 #define DHTPIN D7
-//#define DHTTYPE DHT11
-//DHT dht(DHTPIN, DHTTYPE);
 DHTesp dht;
 
 #define DELAIS_ACTIONNEURS 2000
@@ -86,13 +82,69 @@ bool etat_priseb = 0;
 /************************************************************************************/
 void setup() {
   Serial.begin(9600);
-  delay(10);
-  
+  Serial.println("Booting");
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(ssid, wifiPassword);
+  while (WiFi.waitForConnectResult() != WL_CONNECTED) {
+    //Serial.println("Connection Failed! Rebooting...");
+    delay(5000);
+    ESP.restart();
+  }
+   // Port defaults to 8266
+  // ArduinoOTA.setPort(8266);
+
+  // Hostname defaults to esp8266-[ChipID]
+  // ArduinoOTA.setHostname("myesp8266");
+
+  // No authentication by default
+  // ArduinoOTA.setPassword("admin");
+
+  // Password can be set with it's md5 value as well
+  // MD5(admin) = 21232f297a57a5a743894a0e4a801fc3
+  // ArduinoOTA.setPasswordHash("21232f297a57a5a743894a0e4a801fc3");
+
+  ArduinoOTA.onStart([]() {
+    String type;
+    if (ArduinoOTA.getCommand() == U_FLASH) {
+      type = "sketch";
+    } else { // U_SPIFFS
+      type = "filesystem";
+    }
+
+    // NOTE: if updating SPIFFS this would be the place to unmount SPIFFS using SPIFFS.end()
+    Serial.println("Start updating " + type);
+  });
+  ArduinoOTA.onEnd([]() {
+    Serial.println("\nEnd");
+  });
+  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+    Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+  });
+  ArduinoOTA.onError([](ota_error_t error) {
+    Serial.printf("Error[%u]: ", error);
+    if (error == OTA_AUTH_ERROR) {
+      Serial.println("Auth Failed");
+    } else if (error == OTA_BEGIN_ERROR) {
+      Serial.println("Begin Failed");
+    } else if (error == OTA_CONNECT_ERROR) {
+      Serial.println("Connect Failed");
+    } else if (error == OTA_RECEIVE_ERROR) {
+      Serial.println("Receive Failed");
+    } else if (error == OTA_END_ERROR) {
+      Serial.println("End Failed");
+    }
+  });
+  ArduinoOTA.begin();
+  ArduinoOTA.setPassword("Carlphilippe1");
+  Serial.println("Ready");
+  Serial.print("IP address: ");
+  Serial.println(WiFi.localIP());
+
   pinMode(PRISE_LAMPE, OUTPUT);
   pinMode(PRISE_POMPE, OUTPUT);
   pinMode(PRISE_B,OUTPUT);
   digitalWrite(PRISE_LAMPE, HIGH);
-  digitalWrite(PRISE_POMPE, HIGH);
+  digitalWrite(PRISE_POMPE, HIGH);  
   digitalWrite(PRISE_B,HIGH);
   Cayenne.begin(username, password, clientID, ssid, wifiPassword);
   //dht.begin();
@@ -106,10 +158,8 @@ void setup() {
 void loop() {
   /********************* Acquisition de data ****************************/
   if (WiFi.status() == WL_CONNECTED) {                                           // If connected to internet, proceed normally
-    Cayenne.virtualWrite(98,FW_VERSION);                                         // Send the version number to Cayenne
     Cayenne.loop();                                                              // Proceed with cayenne.loop()
-    //checkForUpdates();
-    
+    ArduinoOTA.handle();
     delay(1000);  // For testing this file.
   } else {
     failedConnections++;
@@ -178,11 +228,6 @@ void loop() {
 }
 
 /***************************************Communication avec cayenne****************************************/
-// Check for updates on web server
-CAYENNE_IN(0)
-{
-  checkForUpdates();
-}
 // Read the time to pump
 CAYENNE_IN(1)
 {
@@ -256,25 +301,4 @@ CAYENNE_IN(12)
 CAYENNE_OUT(13)
 {
   Cayenne.virtualWrite(13,qte_bouffe);
-}
-
-
-/************************************ Functions *************************************/
-// This function checks the web server to see if a new version number is available, if so, it updates with the new firmware (binary)
-void checkForUpdates() {
-  String fwImageURL = String(fwURLBase);
-      fwImageURL.concat( ".ino.nodemcu.bin" );                                              // Adds the url for the binary
-      Serial.println(fwImageURL);
-      t_httpUpdate_return ret = ESPhttpUpdate.update( fwImageURL , "", "CC:AA:48:48:66:46:0E:91:53:2C:9C:7C:23:2A:B1:74:4D:29:9D:33");             // Update the esp with the new binary, third is the certificate of the site
-      delay(100);
-
-      switch(ret) {
-        case HTTP_UPDATE_FAILED:
-          Serial.printf("HTTP_UPDATE_FAILED Error (%d): %s", ESPhttpUpdate.getLastError(), ESPhttpUpdate.getLastErrorString().c_str());
-          break;
-
-        case HTTP_UPDATE_NO_UPDATES:
-          Serial.println("no updates");
-          break;
-  }
 }
