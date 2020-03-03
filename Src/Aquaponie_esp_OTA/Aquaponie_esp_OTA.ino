@@ -60,10 +60,11 @@ DHTesp dht;
 #define TEMPS_ECLAIRAGE_JOUR 43200000 // 12h
 #define TEMPS_ECLAIRAGE_NUIT 43200000 // 12h
 
+// Valeurs par defaut
 int duree_pompage = 10; // Secondes de durée de pompe
 int nourrir_state = 0;
-int qte_bouffe = 5;
-int temps_entre_remplissages = 1800000; //2h par defaut
+int qte_bouffe = 8;
+int temps_entre_remplissages = 900000; //15min par defaut
 
 float hum, temp;
 float hum_pres, temp_pres;
@@ -152,7 +153,7 @@ void setup() {
   CAYENNE_IN(4);
   CAYENNE_OUT(13);
   CAYENNE_OUT(10);
-  dht.setup(DHTPIN, DHTesp::DHT11);
+  dht.setup(DHTPIN, DHTesp::DHT22);
 }
 /************************************************************************************/
 void loop() {
