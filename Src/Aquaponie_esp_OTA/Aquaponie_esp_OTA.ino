@@ -57,8 +57,8 @@ DHTesp dht;
 
 #define DELAIS_ACTIONNEURS 2000
 #define DUREE_REMPLISSAGE_MAX 180000
-#define TEMPS_ECLAIRAGE_JOUR 43200000 // 12h
-#define TEMPS_ECLAIRAGE_NUIT 43200000 // 12h
+#define TEMPS_ECLAIRAGE_JOUR 57600000 // 16h
+#define TEMPS_ECLAIRAGE_NUIT 28800000 // 8h
 
 // Valeurs par defaut
 int duree_pompage = 10; // Secondes de durée de pompe
@@ -149,6 +149,7 @@ void setup() {
   digitalWrite(PRISE_B,HIGH);
   Cayenne.begin(username, password, clientID, ssid, wifiPassword);
   //dht.begin();
+  
   CAYENNE_IN(12);
   CAYENNE_IN(4);
   CAYENNE_OUT(13);
