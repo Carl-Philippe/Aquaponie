@@ -48,11 +48,11 @@ char clientID[] = "d301fc90-fe7d-11e8-809d-0f8fe4c30267";
 #define PRISE_POMPE D1    // Prise controllable 2
 #define PRISE_B D3  // Prise controllable 3
 
-#define PIN_FLOAT_A D4  // Flotteur bas du circuit des plantes
+#define PIN_FLOAT_A D7  // Flotteur bas du circuit des plantes
 #define PIN_FLOAT_B D5  // Flotteur haut du circuit des plantes
 #define PIN_FLOAT_C D6  // Flotteur sécurité du réservoir à poissons
 
-#define DHTPIN D7
+#define DHTPIN D4
 DHTesp dht;
 
 #define DELAIS_ACTIONNEURS 2000
@@ -91,13 +91,13 @@ void setup() {
     ESP.restart();
   }
    // Port defaults to 8266
-  // ArduinoOTA.setPort(8266);
+   ArduinoOTA.setPort(8466);
 
-  // Hostname defaults to esp8266-[ChipID]
-  // ArduinoOTA.setHostname("myesp8266");
+   // Hostname defaults to esp8266-[ChipID]
+   ArduinoOTA.setHostname("Esp_aquap");
 
   // No authentication by default
-  // ArduinoOTA.setPassword("admin");
+   ArduinoOTA.setPassword("Carlphilippe1");
 
   // Password can be set with it's md5 value as well
   // MD5(admin) = 21232f297a57a5a743894a0e4a801fc3
@@ -135,7 +135,7 @@ void setup() {
     }
   });
   ArduinoOTA.begin();
-  ArduinoOTA.setPassword("Carlphilippe1");
+
   Serial.println("Ready");
   Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
