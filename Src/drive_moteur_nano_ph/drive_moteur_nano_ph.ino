@@ -7,7 +7,7 @@ int motorPin2 = 9;     // IN2 on the ULN2003 driver 1
 int motorPin3 = 10;     // IN3 on the ULN2003 driver 1
 int motorPin4 = 11;     // IN4 on the ULN2003 driver 1
 
-int qte_bouffe = 2;
+int qte_bouffe = 5;
 int poissons_nourris = 0;
 int nourrir_state = 0;
 
@@ -20,6 +20,8 @@ float calibration = 0;
 unsigned long int avgValue;
 float b;
 int buf[10], tempH;
+char temp[10];
+char buffer[10];
 
 // Initialize with pin sequence IN1-IN3-IN2-IN4 for using the AccelStepper with 28BYJ-48
 AccelStepper stepper1(HALFSTEP, motorPin1, motorPin3, motorPin2, motorPin4);
@@ -27,7 +29,7 @@ AccelStepper stepper1(HALFSTEP, motorPin1, motorPin3, motorPin2, motorPin4);
 void setup() {
   Serial.begin(9600);
   delay(2000); // So that it will not receive unwanted stuff while the esp is starting up)
-
+  Serial.flush();
 }//--(end setup )---
 
 void loop() {
@@ -35,31 +37,37 @@ void loop() {
     feedFishies();
     nourrir_state = 0;
   }
-  if (readpH) {
+  if (readpH == true) {
     float pH = getpH();
-    if (lastpH != pH) {
-      int intpH = pH * 100;
-      Serial.write(intpH);
-      delay(50);
-      lastpH = pH;
-      readpH = false;
-    }
+    dtostrf(pH, 4, 2, buffer);
+    Serial.write(buffer);
+    delay(50);
+    lastpH = pH;
+    readpH = false;
   }
 
-  //int temp = b2  + b1 * 256 ;
   while (!Serial.available()) {}
-  int temp =  Serial.read();
-  Serial.println(temp);
-
-  if (temp == 1)
-    nourrir_state = temp;
-  else if (temp > 500 && temp < 5000) {
+  Serial.readBytes(temp,10); //Read the serial data and store in var;
+  float data = atof(temp);
+  //Serial.print("temp ");Serial.println(data);
+  
+  if (data == 1)
+    nourrir_state = data;
+    
+  else if (data > 10 && data < 100) {
     readpH = true;
-    calibration = temp / 100;
+    calibration = data;
+    //Serial.print("calibration ");Serial.println(calibration);
   }
-  else if (temp != 0 && temp < 10)
-    qte_bouffe = temp;
-
+  
+  else if (data != 0 && data < 10){
+    qte_bouffe = data;
+    dtostrf(qte_bouffe, 4, 2, buffer);
+    Serial.write(buffer);
+    //Serial.print("Qte bouffe ");Serial.println(qte_bouffe);
+   }
+  else
+    Serial.flush();
   stepper1.setCurrentPosition(0);
   stepper1.moveTo(qte_bouffe * 1000);
 
@@ -67,7 +75,7 @@ void loop() {
 
 void feedFishies() {
   stepper1.setMaxSpeed(1000.0);
-  stepper1.setAcceleration(100.0);
+  stepper1.setAcceleration(150.0);
   stepper1.setSpeed(15);
   while (stepper1.distanceToGo() > 0)
   {
@@ -108,8 +116,5 @@ float getpH() {
     avgValue += buf[i];
   float pHVol = (float)avgValue * 5.0 / 1024 / 6;
   float phValue = -5.70 * pHVol + calibration;
-  Serial.print("sensor = ");
-  Serial.println(phValue);
-  delay(500);
   return phValue;
 }
