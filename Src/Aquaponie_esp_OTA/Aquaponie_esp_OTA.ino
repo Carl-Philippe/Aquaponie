@@ -71,8 +71,8 @@ DHTesp dht;
 
 #define DELAIS_ACTIONNEURS 2000
 #define DUREE_REMPLISSAGE_MAX 180000
-#define TEMPS_ECLAIRAGE_JOUR 57600000 // 16h
-#define TEMPS_ECLAIRAGE_NUIT 28800000 // 8h
+#define TEMPS_ECLAIRAGE_JOUR 72000000 // 20h not used if cayenne schedule works
+#define TEMPS_ECLAIRAGE_NUIT 72000000 // 20h
 #define TEMPS_PRISE_PH 450000 //15min // 2min30
 
 // Valeurs par defaut
@@ -250,14 +250,14 @@ void loop() {
     }
   }
 
-  if ( etat_lampe == 1 && millis() - timerLampe >= TEMPS_ECLAIRAGE_JOUR)
+  if ( etat_lampe == 1 && millis() - timerLampe >= TEMPS_ECLAIRAGE_NUIT)
   {
     timerLampe = millis();
     etat_lampe = 0;
     digitalWrite(PRISE_LAMPE, etat_lampe);
     Cayenne.virtualWrite(3, etat_lampe);
   }
-  else if (etat_lampe == 0 && millis() - timerLampe >= TEMPS_ECLAIRAGE_NUIT)
+  else if (etat_lampe == 0 && millis() - timerLampe >= TEMPS_ECLAIRAGE_JOUR)
   {
     timerLampe = millis();
     etat_lampe = 1;
