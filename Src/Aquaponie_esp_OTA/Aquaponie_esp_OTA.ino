@@ -5,8 +5,8 @@
 #include <ArduinoOTA.h>
 
 #ifndef STASSID
-#define STASSID "SmartRGE1BB"
-#define STAPSK  "s9003502"
+#define STASSID "BELL029"
+#define STAPSK  "ED55E91C"
 #endif
 
 // WiFi network info.
